@@ -1,0 +1,6 @@
+[Unit]
+Description=Update Jonsbo AIO Display
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/jonsbo_th 5131:2007 x86_pkg_temp
