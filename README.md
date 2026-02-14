@@ -86,7 +86,7 @@ The above installation script will set up a `systemd` service named `jonsbo` tha
   **A:** Most probably NO. However, if you are pretty sure you have a TH-360/240 on hand with the exact same water block as seen on their website, you can try modifying `jonsbo.service` with your PID:VID. For example, if your device shows up with ID "1234:5678", edit the `ExecStart` line as follows:
   
   ```sh
-  ExecStart=/usr/local/bin/jonsbo_th **1234:5678** x86_pkg_temp  # First parameter is the USB VID:PID to send data to. SETTING THIS TO AN INCOMPATIBLE DEVICE MAY DAMAGE IT. YOU HAVE BEEN WARNED.
+  ExecStart=/usr/local/bin/jonsbo_th 1234:5678 x86_pkg_temp  # First parameter is the USB VID:PID to send data to. SETTING THIS TO AN INCOMPATIBLE DEVICE MAY DAMAGE IT. YOU HAVE BEEN WARNED.
   ```
 
 - **Q:** How do I customise the temperature source?
@@ -110,7 +110,7 @@ The above installation script will set up a `systemd` service named `jonsbo` tha
   Now, pick one of those values and edit them into the `ExecStart` line of `jonsbo.service`. For example with `TFN1`:
   
   ```sh
-  ExecStart=/usr/local/bin/jonsbo_th 5131:2007 **TFN1**   # Second parameter determines what zone type to look for
+  ExecStart=/usr/local/bin/jonsbo_th 5131:2007 TFN1   # Second parameter determines what zone type to look for
   ```
   
 - **Q:** Why Rust?
