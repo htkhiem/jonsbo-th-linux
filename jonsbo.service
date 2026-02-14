@@ -4,3 +4,6 @@ Description=Update Jonsbo AIO Display every 0.5s.
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/jonsbo_th 5131:2007 x86_pkg_temp
+
+[Install]
+WantedBy=default.target
