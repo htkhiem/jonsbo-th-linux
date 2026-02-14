@@ -5,7 +5,10 @@ use std::path::PathBuf;
 use anyhow::{Context, Error as AnyhowError, Result};
 use hidapi::HidApi;
 
-fn get_cpu_temp(zone_type: &str) -> Result<f64> {
+// Currently not configurable from CLI as there is no need.
+static UPDATE_PERIOD_MS: u64 = 500;
+
+fn get_thermal_zone(zone_type: &str) -> Result<PathBuf> {
     let mut basepath = PathBuf::new();
     basepath.push("/sys/class/thermal");
     for entry in fs::read_dir(&basepath)? {
@@ -17,7 +20,8 @@ fn get_cpu_temp(zone_type: &str) -> Result<f64> {
                     if type_str.trim() == zone_type {
                         let mut temp_path = entry.path();
                         temp_path.push("temp");
-                        return Ok(fs::read_to_string(temp_path)?.trim().parse::<f64>()? / 1000.0);
+                        return Ok(temp_path);
+                        // return Ok(fs::read_to_string(temp_path)?.trim().parse::<f64>()? / 1000.0);
                     }
                 }
                 Err(e) => {
@@ -43,6 +47,10 @@ fn main() -> Result<()> {
         .map(|s| s.as_str().trim())
         .unwrap_or("x86_pkg_temp");
 
+    // Get the corresponding thermal zone. Might change between boots so we must search by type.
+    let temp_path =
+        get_thermal_zone(zone_type).context("Could not find a thermal zone with the given type")?;
+
     // Parse "vid:pid" hex string (e.g., "5131:2007", which is the VID of the temperature display on the TH-360 AIO)
     let ids: Vec<u16> = target_id
         .split(':')
@@ -52,23 +60,28 @@ fn main() -> Result<()> {
 
     let (vid, pid) = (ids[0], ids[1]);
 
-    // 2. Get Temperature
-    let temp = get_cpu_temp(zone_type).context("Failed to read CPU temperature")? as u8;
-    let temp = temp.min(99).max(0); // TH-360 only has two 7-seg digits
-
     let api = HidApi::new().context("Failed to initialize HID API")?;
     let device = api
         .open(vid, pid)
         .context("Could not open device. Check permissions/udev.")?;
 
-    let mut buf = [0u8; 64];
-    buf[0] = 0x01; // Report ID
-    buf[1] = 0x02; // Command
-                   // No idea but the third byte is not needed?
-    buf[3] = temp; // Value to display
+    loop {
+        // Allow the occasional failure
+        if let Ok(raw_temp) = fs::read_to_string(&temp_path) {
+            if let Ok(temp) = raw_temp.trim().parse::<f64>() {
+                let mut buf = [0u8; 64];
+                buf[0] = 0x01; // Report ID
+                buf[1] = 0x02; // Command
+                               // No idea but the third byte is not needed?
+                buf[3] = (temp / 1000.0).max(0.0).min(99.0) as u8; // Value to display. TH-360 only has two 7-seg digits.
 
-    device
-        .write(&buf)
-        .context("Failed to write to temperature display")?;
+                device
+                    .write(&buf)
+                    .context("Failed to write to temperature display")?;
+
+                std::thread::sleep(std::time::Duration::from_millis(UPDATE_PERIOD_MS));
+            }
+        }
+    }
     Ok(())
 }
